@@ -6,3 +6,5 @@ this is the setup flow.
 2. 添加opencv源码：File -> new -> import module -> select opencvsdk/sdk/java. 
 添加App工程对opencv库的依赖：File->Project Structure->选中app的Dependencies选项，点击”+”选中Module dependencies
 it is the 2nd commit.
+3. 添加Opencv的lib库到AndroidStudio里的JniLib中。
+it is the 3rd commit.
