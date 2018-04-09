@@ -18,6 +18,12 @@ public class MainActivity extends Activity {
     @BindView(R.id.btn_faceDetect)
     Button mBtnFaceDetect;
 
+    @BindView(R.id.btn_animalDetect)
+    Button mBtnAnimalDetect;
+
+    @BindView(R.id.btn_quickResponse)
+    Button mQuickResponseCode;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -27,7 +33,7 @@ public class MainActivity extends Activity {
         ButterKnife.bind(this);
     }
 
-    @OnClick({R.id.btn_hello,R.id.btn_faceDetect})
+    @OnClick({R.id.btn_hello, R.id.btn_faceDetect, R.id.btn_animalDetect, R.id.quick_response_result})
     public void onViewClick(View view) {
         int vId = view.getId();
         switch (vId) {
@@ -36,9 +42,15 @@ public class MainActivity extends Activity {
                 startActivity(intentHello);
                 break;
             case R.id.btn_faceDetect:
-                Intent intentFd = new Intent(MainActivity.this,FaceDetectActivity.class);
+                Intent intentFd = new Intent(MainActivity.this, FaceDetectActivity.class);
                 startActivity(intentFd);
                 break;
+            case R.id.btn_animalDetect:
+                Intent intentAd = new Intent(MainActivity.this, AnimalActivity.class);
+                startActivity(intentAd);
+            case R.id.btn_quickResponse:
+                Intent intentQRCode = new Intent(MainActivity.this, QuickResponseCodeActivity.class);
+                startActivity(intentQRCode);
         }
     }
 }

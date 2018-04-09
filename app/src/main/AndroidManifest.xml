@@ -34,7 +34,13 @@
         <activity android:name=".HelloOpenCVActivity" />
         <activity
             android:name=".FaceDetectActivity"
-            android:label="@string/title_activity_face_detect"></activity>
+            android:label="@string/title_activity_face_detect" />
+        <activity
+            android:name=".AnimalActivity"
+            android:label="@string/title_activity_animal" />
+        <activity
+            android:name=".QuickResponseCodeActivity"
+            android:label="@string/title_activity_quick_response_code"></activity>
     </application>
 
 </manifest>

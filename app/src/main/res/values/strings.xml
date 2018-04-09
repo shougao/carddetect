@@ -1,4 +1,7 @@
 <resources>
     <string name="app_name">AnimalDetect</string>
     <string name="title_activity_face_detect">FaceDetectActivity</string>
+    <string name="title_activity_animal">AnimalActivity</string>
+    <string name="imageresult">result</string>
+    <string name="title_activity_quick_response_code">QuickResponseCodeActivity</string>
 </resources>

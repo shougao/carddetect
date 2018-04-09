@@ -21,4 +21,18 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
         android:text="人脸检测" />
+
+    <Button
+        android:id="@+id/btn_animalDetect"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="滴滴监测" />
+
+    <Button
+        android:id="@+id/btn_quickResponse"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="二维码识别" />
 </LinearLayout>
