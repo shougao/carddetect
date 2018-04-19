@@ -4,4 +4,5 @@
     <string name="title_activity_animal">AnimalActivity</string>
     <string name="imageresult">result</string>
     <string name="title_activity_quick_response_code">QuickResponseCodeActivity</string>
+    <string name="qrcode">qrcode :</string>
 </resources>

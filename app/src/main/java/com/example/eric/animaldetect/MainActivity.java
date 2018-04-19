@@ -33,7 +33,7 @@ public class MainActivity extends Activity {
         ButterKnife.bind(this);
     }
 
-    @OnClick({R.id.btn_hello, R.id.btn_faceDetect, R.id.btn_animalDetect, R.id.quick_response_result})
+    @OnClick({R.id.btn_hello, R.id.btn_faceDetect, R.id.btn_animalDetect, R.id.btn_quickResponse})
     public void onViewClick(View view) {
         int vId = view.getId();
         switch (vId) {
@@ -48,9 +48,13 @@ public class MainActivity extends Activity {
             case R.id.btn_animalDetect:
                 Intent intentAd = new Intent(MainActivity.this, AnimalActivity.class);
                 startActivity(intentAd);
+                break;
             case R.id.btn_quickResponse:
                 Intent intentQRCode = new Intent(MainActivity.this, QuickResponseCodeActivity.class);
                 startActivity(intentQRCode);
+                break;
+            default:
+                System.out.print("nothing");
         }
     }
 }
