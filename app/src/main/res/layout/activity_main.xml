@@ -35,4 +35,11 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
         android:text="二维码识别" />
+
+    <!--<Button-->
+        <!--android:id="@+id/btn_multi_qrcode"-->
+        <!--android:layout_width="match_parent"-->
+        <!--android:layout_height="wrap_content"-->
+        <!--android:layout_marginTop="20dp"-->
+        <!--android:text="监测多个二维码" />-->
 </LinearLayout>

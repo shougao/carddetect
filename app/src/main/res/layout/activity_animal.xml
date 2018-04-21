@@ -43,11 +43,11 @@
                 android:text="原始图" />
 
             <Button
-                android:id="@+id/button3"
+                android:id="@+id/btn_multiqrcode"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Button" />
+                android:text="多二维码识别" />
 
             <Button
                 android:id="@+id/button4"
@@ -57,11 +57,11 @@
                 android:text="Button" />
 
             <Button
-                android:id="@+id/button"
+                android:id="@+id/btn_cut_qrcode"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:text="Button" />
+                android:text="切割二维码" />
         </LinearLayout>
 
         <LinearLayout
