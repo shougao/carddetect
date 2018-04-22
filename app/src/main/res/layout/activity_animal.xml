@@ -4,16 +4,28 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@android:color/holo_green_light"
     tools:context=".AnimalActivity">
 
 
     <ImageView
-        android:contentDescription="@string/imageresult"
-        android:id="@+id/imageView"
+        android:id="@+id/firstImageView"
         android:layout_width="match_parent"
-        android:layout_height="289dp"
+        android:layout_height="100dp"
         android:layout_alignParentStart="true"
-        android:layout_alignParentTop="true" />
+        android:layout_alignParentTop="true"
+        android:contentDescription="@string/imageresult" />
+
+
+    <ImageView
+        android:id="@+id/secondImageView"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="134dp"
+        android:contentDescription="@string/imageresult" />
+
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -23,8 +35,8 @@
         android:layout_marginBottom="0dp"
         android:layout_marginStart="0dp"
         android:gravity="center"
-        android:weightSum="1"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:weightSum="1">
 
         <LinearLayout
             android:id="@+id/level2"
@@ -47,21 +59,21 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="多二维码识别" />
+                android:text="OTSU处理" />
 
             <Button
-                android:id="@+id/button4"
+                android:id="@+id/btn_getCT"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Button" />
+                android:text="遍历卡CT" />
 
             <Button
                 android:id="@+id/btn_cut_qrcode"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:text="切割二维码" />
+                android:text="遍历二维码" />
         </LinearLayout>
 
         <LinearLayout

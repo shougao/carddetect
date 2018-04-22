@@ -16,19 +16,32 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfDouble;
+import org.opencv.core.MatOfInt;
 import org.opencv.core.MatOfPoint;
+import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
+import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
+
+import static org.opencv.core.Core.mean;
+import static org.opencv.imgproc.Imgproc.CHAIN_APPROX_SIMPLE;
+import static org.opencv.imgproc.Imgproc.RETR_EXTERNAL;
 
 public class AnimalActivity extends Activity {
 
@@ -55,13 +68,21 @@ public class AnimalActivity extends Activity {
     @BindView(R.id.btn_cut_qrcode)
     Button mCutQRCode;
 
-    @BindView(R.id.imageView)
-    ImageView mImageView;
+    @BindView(R.id.btn_getCT)
+    Button mGetCT;
+
+    @BindView(R.id.firstImageView)
+    ImageView mFirstImageView;
+
+    @BindView(R.id.secondImageView)
+    ImageView mSecondImageView;
 
     private Mat mOriginMat;
     private Mat mGrayMat;
     private Mat mBinaryMat;
     private Mat merodeMat;
+
+    private int mX; //假设二维码识别到的向下尺寸距离为 X像素;
 
     private LoaderCallbackInterface mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -82,7 +103,6 @@ public class AnimalActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_animal);
-
         ButterKnife.bind(this);
     }
 
@@ -116,21 +136,28 @@ public class AnimalActivity extends Activity {
 //        Matrix matrix = new Matrix();
 //        matrix.postScale(0.25f, 0.25f);
 //        Bitmap smallBitmap = bitmap.createBitmap(bitmap, 0, 0, bitmap.getHeight(), bitmap.getWidth(), matrix, true);
-        mImageView.setImageBitmap(bitmap);
+        mFirstImageView.setImageBitmap(bitmap);
     }
 
     private void showSmallImage(Bitmap bitmap) {
         Matrix matrix = new Matrix();
         matrix.postScale(0.25f, 0.25f);
         Bitmap smallBitmap = bitmap.createBitmap(bitmap, 0, 0, bitmap.getHeight(), bitmap.getWidth(), matrix, true);
-        mImageView.setImageBitmap(smallBitmap);
+        mFirstImageView.setImageBitmap(smallBitmap);
     }
 
     private void showSmallImage(Mat src) {
         showBitmapImage(MatToBitmap(src));
     }
 
-    @OnClick({R.id.btn_grayImage, R.id.btn_binaryImage, R.id.btn_erodeImage, R.id.btn_filterandcut, R.id.btn_origin, R.id.btn_multiqrcode, R.id.btn_cut_qrcode})
+
+    private void showSmallImageSecond(Mat src) {
+        mSecondImageView.setImageBitmap(MatToBitmap(src));
+    }
+
+    @OnClick({R.id.btn_grayImage, R.id.btn_binaryImage, R.id.btn_erodeImage,
+            R.id.btn_filterandcut, R.id.btn_origin,
+            R.id.btn_multiqrcode, R.id.btn_cut_qrcode, R.id.btn_getCT})
     public void onViewClick(View view) {
         switch (view.getId()) {
             case R.id.btn_grayImage:
@@ -153,6 +180,9 @@ public class AnimalActivity extends Activity {
                 break;
             case R.id.btn_cut_qrcode:
                 cutQrcode();
+                break;
+            case R.id.btn_getCT:
+                getCT();
                 break;
         }
     }
@@ -274,15 +304,21 @@ public class AnimalActivity extends Activity {
         return resMat;
     }
 
+    private Mat cutAndReduceImage(Mat src, Rect rect) {
+        return cutImage(src, rect.x + (int) (rect.width * 0.1), rect.y + (int) (rect.height * 0.1), (int) (rect.width * 0.8), (int) (rect.height * 0.8));
+    }
+
     /**
+     * 竖向5等分图片
      * 把一行五个的二维码，变为五个二维码图片。
+     *
      * @param srcMat
      * @return
      */
-    private ArrayList<Mat> getQRImages(Mat srcMat){
+    private ArrayList<Mat> getImageList(Mat srcMat) {
         ArrayList<Mat> images = new ArrayList<Mat>();
 
-        for(int i=0; i<5; i++){
+        for (int i = 0; i < 5; i++) {
             Mat tmp = cutImage(srcMat, srcMat.cols() / 5 * i, 0, srcMat.cols() / 5, srcMat.rows());
             images.add(tmp.clone());
         }
@@ -290,7 +326,7 @@ public class AnimalActivity extends Activity {
     }
 
     // multi qrcode reganize.
-    private Bitmap getMultiQRsrc() {
+    private Bitmap getMultiQRsrcImage() {
         return BitmapFactory.decodeResource(getResources(), R.drawable.originpicture_multi_qr_small);
     }
 
@@ -304,7 +340,7 @@ public class AnimalActivity extends Activity {
      * 4. 根据二维码三个区域的特征，对轮廓进行面积与比例过滤得到最终结果显示
      */
     private void parseMultiQrcode() {
-        Mat srcMat = bitmapToMat(getMultiQRsrc());
+        Mat srcMat = bitmapToMat(getMultiQRsrcImage());
         Mat dstMatGray = new Mat(srcMat.rows(), srcMat.cols(), CvType.CV_8UC1);
         Imgproc.cvtColor(srcMat, dstMatGray, Imgproc.COLOR_BGR2GRAY, 1);
 
@@ -334,7 +370,7 @@ public class AnimalActivity extends Activity {
         // finding the contours
         ArrayList<MatOfPoint> contours = new ArrayList<MatOfPoint>();
         Mat hierarchy = new Mat();
-        Imgproc.findContours(dstMatOTSU, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+        Imgproc.findContours(dstMatOTSU, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
 
 
         // finding best bounding rectangle for a contour whose distance is closer to the image center that other ones
@@ -365,33 +401,40 @@ public class AnimalActivity extends Activity {
         showSmallImage(result);
     }
 
+    /**
+     * 解析每一个二维码
+     *
+     * @return
+     */
     private Mat cutQrcode() {
-        //把五个卡上的二维码切到一行上。
-        Mat srcMat = bitmapToMat(getMultiQRsrc());
-        srcMat = cutImage(srcMat, 0, 0, srcMat.cols(), srcMat.cols()/5);//因为一行五个卡
+        //1 把五个卡上的二维码切到一行上。
+        Mat srcMat = bitmapToMat(getMultiQRsrcImage());
+        srcMat = cutImage(srcMat, 0, 0, srcMat.cols(), srcMat.cols() / 5);//因为一行五个卡
         Mat dstMatGray = new Mat(srcMat.rows(), srcMat.cols(), CvType.CV_8UC1);
         Imgproc.cvtColor(srcMat, dstMatGray, Imgproc.COLOR_BGR2GRAY, 1);
 
 
-        //把一行的五个二维码做阈值处理
+        //2 把一行的五个二维码做阈值处理
         Mat dstMatOTSU = new Mat(srcMat.rows(), srcMat.cols(), CvType.CV_8UC1);
         Imgproc.threshold(dstMatGray, dstMatOTSU, OTSUmax1, OTSUmax2, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
         showSmallImage(dstMatOTSU);
 
 
-        //把一行图像转换成五个二维码bitmap图像。
+        //3 把一行图像转换成五个二维码bitmap图像。
         ArrayList<Bitmap> bpList = new ArrayList<>();
-        for(Mat image : getQRImages(dstMatOTSU)){
+        for (Mat image : getImageList(dstMatOTSU)) {
             Bitmap bp = MatToBitmap(image);
             bpList.add(bp);
             showSmallImage(image);
         }
 
+        // 4 解析并获取每一个二维码值
         QRManager manager = new QRManager();
         for (Bitmap bp : bpList) {
             manager.parseQRcode(bp, new QRManager.IQRListener() {
                 @Override
                 public void onSuccess(String result) {
+                    // 5 回调显示每一个二维码值给JS
                     System.out.println(TAG + "to js, qrcode=" + result);
                 }
 
@@ -402,8 +445,336 @@ public class AnimalActivity extends Activity {
             });
             showBitmapImage(bp);
         }
-
         return dstMatGray;
+    }
+
+
+    private void debugShow(Mat mat) {
+        showSmallImage(mat);
+        if (true) {
+            return;
+        }
+    }
+
+    private void getCT() {
+        // 1.获取没有周围无用边框的原图
+        Mat srcMat = bitmapToMat(getMultiQRsrcImage());
+        Mat dstMatGray = new Mat(srcMat.rows(), srcMat.cols(), CvType.CV_8UC1);
+        Imgproc.cvtColor(srcMat, dstMatGray, Imgproc.COLOR_BGR2GRAY, 1);
+
+//        // 使用高斯滤波, 去除过多噪声和纹理, 保证找到的线比较直
+//        Mat gausMat = new Mat(dstMatGray.rows(), dstMatGray.cols(), CvType.CV_8UC1);
+//        Imgproc.GaussianBlur(dstMatGray, gausMat, new Size(3, 3), 2, 2);
+
+
+        // 3 竖着平均切割遍历每一张带二维码的图像
+        ArrayList<Mat> srcMatList = getImageList(dstMatGray);
+        ArrayList<Bitmap> bpList = new ArrayList<>();
+        for (Mat image : getImageList(dstMatGray)) {
+            Bitmap bp = MatToBitmap(image);
+            bpList.add(bp);
+        }
+
+        // 2 获取图像的自动阈值处理图像。
+//        Mat image = srcMatList.get(3);//假设遍历得到的是第四个。
+        for(Mat image : srcMatList) {
+            calcGray(image);
+        }
+
+        if (true) {
+            return;
+        }
+
+        if(false) {
+/*
+        // 方法二(第七步 7 找到位置坐标。)
+        // 找出轮廓对应凸包的四边形拟合
+        List<MatOfPoint> squares = new ArrayList<>();
+        List<MatOfPoint> hulls = new ArrayList<>();
+        MatOfInt hull = new MatOfInt();
+        MatOfPoint2f approx = new MatOfPoint2f();
+        approx.convertTo(approx, CvType.CV_32F);
+
+        for (MatOfPoint contour : mCTContours) {
+            // 边框的凸包
+            Imgproc.convexHull(contour, hull);
+
+            // 用凸包计算出新的轮廓点
+            Point[] contourPoints = contour.toArray();
+            int[] indices = hull.toArray();
+            List<Point> newPoints = new ArrayList<>();
+            for (int index : indices) {
+                newPoints.add(contourPoints[index]);
+            }
+            MatOfPoint2f contourHull = new MatOfPoint2f();
+            contourHull.fromList(newPoints);
+
+            // 多边形拟合凸包边框(此时的拟合的精度较低)
+            Imgproc.approxPolyDP(contourHull, approx, Imgproc.arcLength(contourHull, true) * 0.02, true);
+
+            // 筛选出面积大于某一阈值的，且四边形的各个角度都接近直角的凸四边形
+            MatOfPoint approxf1 = new MatOfPoint();
+            approx.convertTo(approxf1, CvType.CV_32S);
+            if (approx.rows() > 4 && Imgproc.isContourConvex(approxf1) && checkArea(approx)) {
+                // 角度大概72度
+//                if (maxCosine < 0.2) {
+                MatOfPoint tmp = new MatOfPoint();
+                contourHull.convertTo(tmp, CvType.CV_32S);
+                squares.add(approxf1);
+                hulls.add(tmp);
+//                }
+            }
+        }
+
+
+        System.out.println(TAG + "zqc square number is " + squares.size());
+
+        for (MatOfPoint ct : squares) {
+            Mat result = cutImage(ctImageTarget, 0, 0, ct.cols() + 30, ct.rows() + 30);
+            showSmallImage(result);
+            if (true) {
+                return;
+            }
+        }
+
+        // 找出外接矩形最大的四边形
+//        int index = findLargestSquare(squares);
+//        MatOfPoint largest_square = squares.get(index);
+//        if (largest_square.rows() == 0 || largest_square.cols() == 0)
+//            return result;
+
+        showSmallImage(edgeMat);
+
+        // 7 读取CT轮廓内和轮廓外的灰度值。
+
+        //原图中剪切
+
+        //原图中坐标的读取。
+
+        if (true) {
+            return;
+        }
+
+        // find the center of the image
+        double[] centers = {(double) image.width() / 2, (double) image.height() / 2};
+        Point image_center = new Point(centers);
+
+//        // 使用高斯滤波, 去除过多噪声和纹理，
+//        Mat gausMat = new Mat(srcMat.rows(), srcMat.cols(), CvType.CV_8UC1);
+//        Imgproc.GaussianBlur(dstMatGray, gausMat, new Size(3,3), 2, 2);
+//        showSmallImage(gausMat);
+        if (true) {
+            return;
+        }
+
+//        // finding the contours
+//        ArrayList<MatOfPoint> contours = new ArrayList<MatOfPoint>();
+//        Mat hierarchy = new Mat();
+//        Imgproc.findContours(image, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+//
+//
+//        // finding best bounding rectangle for a contour whose distance is closer to the image center that other ones
+//        double d_min = Double.MAX_VALUE;
+//        Rect rect_min = new Rect();
+//        for (MatOfPoint contour : contours) {
+//            Rect rec = Imgproc.boundingRect(contour);
+//            // find the best candidates
+//            if (rec.height > srcMat.height() / 2 & rec.width > srcMat.width() / 2)
+//                continue;
+//            Point pt1 = new Point((double) rec.x, (double) rec.y);
+//            Point center = new Point(rec.x + (double) (rec.width) / 2, rec.y + (double) (rec.height) / 2);
+//            double d = Math.sqrt(Math.pow((double) (pt1.x - image_center.x), 2) + Math.pow((double) (pt1.y - image_center.y), 2));
+//            if (d < d_min) {
+//                d_min = d;
+//                rect_min = rec;
+//            }
+//        }
+//        // slicing the image for result region
+//        int pad = 6;
+//        rect_min.x = rect_min.x - pad;
+//        rect_min.y = rect_min.y - pad;
+//
+//        rect_min.width = rect_min.width + 2 * pad;
+//        rect_min.height = rect_min.height + 2 * pad;
+//
+//        Mat result = original.submat(rect_min);
+//        showSmallImage(result);*/
+        }
+
+    }
+
+    private double calcGray(Mat image){
+
+        Mat targetImage = image.clone();
+//        Mat image = new Mat(srcMat.rows(), srcMat.cols(), CvType.CV_8UC1);
+        Imgproc.threshold(image, image, OTSUmax1, OTSUmax2, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
+//        showSmallImage(image);
+
+
+        // 4 根据二维码读到的标记尺寸，遍历切割到CT所在的大致位置, 假设二维码识别到的向下尺寸距离都为 mX 像素
+        System.out.println(TAG + "image info:" + ", heigh=" + image.height() + ", width=" + image.width()); // heigh=3960, width=827
+        Mat ctImage = cutImage(image, image.width() / 5, image.height() / 2, image.width() / 2 - image.width() / 6, image.height() / 6); // 定位CT具体位置
+        Mat ctImageTarget = cutImage(targetImage, targetImage.width() / 5, targetImage.height() / 2, targetImage.width() / 2 - targetImage.width() / 6, targetImage.height() / 6); // 定位CT具体位置
+
+
+        // 5 获取CT的精确定位
+        // 使用canny边缘检测
+        Mat edgeMat = ctImage.clone();
+        Imgproc.Canny(ctImage, edgeMat, 20, 60, 3, false);
+        // 膨胀，连接边缘
+//        Imgproc.dilate(edgeMat, edgeMat, new Mat(), new Point(-1,-1), 3, 1, new Scalar(1));
+
+
+        // 6 轮廓提取
+        List<MatOfPoint> mCTContours = new ArrayList<>();
+        Mat hierarchy2 = new Mat();
+        Imgproc.findContours(edgeMat, mCTContours, hierarchy2, RETR_EXTERNAL/*外部轮廓*/, CHAIN_APPROX_SIMPLE);
+        Collections.sort(mCTContours, mCTComparator);
+        System.out.println("zqc contours size = " + mCTContours.size());
+
+
+        // 7 找到位置坐标。
+        // 方法一
+        int indexCT = 0;
+        Mat mMatC = null;
+        Mat mMatT = null;
+        Mat mMatBackground = null;
+
+
+        // 用于在手机上显示切割后的结果。
+        for (MatOfPoint contour : mCTContours) {
+            Rect rect = Imgproc.boundingRect(contour);
+            System.out.println(indexCT + "   zqc find rect, rect.x = " + rect.x + ", rect.y=" + rect.y + ", width=" + rect.width + ", heigh=" + rect.height);
+
+            // 宽高各减小20%，进行灰度值的计算范围
+            switch (indexCT) {
+                case 0:
+                    mMatC = cutAndReduceImage(ctImageTarget, rect);
+                    showSmallImage(mMatC);
+//                    getInnerGrayValue(mMatC);
+                    break;
+                case 1:
+//                    mMatT = cutImage(ctImageTarget, rect.x, rect.y, rect.width, rect.height);
+                    mMatT = cutAndReduceImage(ctImageTarget, rect);
+                    showSmallImageSecond(mMatT);
+                    break;
+            }
+            indexCT++;
+        }
+
+
+        // 8 提取CT线的灰度值, C
+        double mGrayCValue = 0.0;
+        if (mMatC != null) {
+            mGrayCValue = getInnerGrayValue(mMatC);
+        }
+
+        // 8 提取CT线的灰度值, T
+        double mGrayTValue = 0.0;
+        if (mMatT != null) {
+            mGrayTValue = getInnerGrayValue(mMatT);
+        }
+
+        // 如果C线没有，则按照T线向下的位置距离强制提取
+//        if(mCTContours.size() == 1){
+//            mCTContours.add(1, );
+//        }
+
+        // 9 获取CT线上中下三处的底色值， 最小值为底色值。
+        // 仅获取中间值， 其他位置， 以及删除污染底色todo
+        Rect rectC = Imgproc.boundingRect(mCTContours.get(0));
+        Rect rectT;
+        if(mCTContours.size() == 1){
+            rectT = new Rect(137, 537, 119, 45);//经验值 rect.x = 137, rect.y=537, width=119, heigh=45
+        } else {
+            rectT = Imgproc.boundingRect(mCTContours.get(1));
+        }
+        System.out.println("background size: x=" +rectC.x + ", y=" + (rectC.y + rectC.height) + ", width=" + rectC.width + ", heigh=" + (rectT.y-rectC.y-rectC.height));
+        mMatBackground = cutImage(ctImageTarget, rectC.x, rectC.y + rectC.height, rectC.width, rectT.y-rectC.y-rectC.height);
+        double mGrayBackgroundValue = 0.0;
+        if (mMatBackground != null) {
+            mGrayBackgroundValue = getInnerGrayValue(mMatBackground);
+        }
+        showSmallImage(mMatBackground);
+
+
+        // 10 使用前景值减去背景值
+        double finalGray = getFinalValue(mGrayTValue, mGrayBackgroundValue);
+        System.out.println("zqc finalGray=" + finalGray);
+        return finalGray;
+    }
+
+
+    private double getFinalValue(double tValue, double background) {
+        return (255 - tValue) - (255 - background);
+    }
+    /**
+     * 矩形的Y值从小到大排序
+     */
+    private Comparator<MatOfPoint> mCTComparator = new Comparator<MatOfPoint>() {
+        @Override
+        public int compare(MatOfPoint contour1, MatOfPoint contour2) {
+            Rect rect1 = Imgproc.boundingRect(contour1);
+            Rect rect2 = Imgproc.boundingRect(contour2);
+            if(rect1.y > rect2.y){
+                return 1;
+            } else{
+                return -1;
+            }
+        }
+    };
+
+    private double getInnerGrayValue(Mat srcMat) {
+        double result = 0.0;
+
+        MatOfDouble mu = new MatOfDouble();
+        MatOfDouble sigma = new MatOfDouble();
+        Core.meanStdDev(srcMat, mu, sigma);
+        Scalar resultScalar = Core.mean(srcMat);
+        result = resultScalar.val[0];//scala里存放的是每个通道的颜色值， 单通道的就取下标为0的就ok
+//        double d = mu.get(0, 0)[0];
+        System.out.println("zqc the gray for mean value is: " + result + ", [0]=" + resultScalar.val[0] + ", [1]=" + resultScalar.val[1] + "[2]" + resultScalar.val[2] + "[3]" + resultScalar.val[3]);
+        return result;
+    }
+
+    /**
+     * CT的面积经验值，限制其他小的矩形。
+     *
+     * @param approxf1
+     * @return
+     */
+    private boolean checkArea(MatOfPoint2f approxf1) {
+        return Math.abs(Imgproc.contourArea(approxf1)) > 4000;
+    }
+
+
+    // 根据三个点计算中间那个点的夹角   pt1 pt0 pt2
+    private static double getAngle(Point pt1, Point pt2, Point pt0) {
+        double dx1 = pt1.x - pt0.x;
+        double dy1 = pt1.y - pt0.y;
+        double dx2 = pt2.x - pt0.x;
+        double dy2 = pt2.y - pt0.y;
+        return (dx1 * dx2 + dy1 * dy2) / Math.sqrt((dx1 * dx1 + dy1 * dy1) * (dx2 * dx2 + dy2 * dy2) + 1e-10);
+    }
+
+    // 找到最大的正方形轮廓
+    private static int findLargestSquare(List<MatOfPoint> squares) {
+        if (squares.size() == 0)
+            return -1;
+        int max_width = 0;
+        int max_height = 0;
+        int max_square_idx = 0;
+        int currentIndex = 0;
+        for (MatOfPoint square : squares) {
+            Rect rectangle = Imgproc.boundingRect(square);
+            if (rectangle.width >= max_width && rectangle.height >= max_height) {
+                max_width = rectangle.width;
+                max_height = rectangle.height;
+                max_square_idx = currentIndex;
+            }
+            currentIndex++;
+        }
+        return max_square_idx;
     }
 
 }
