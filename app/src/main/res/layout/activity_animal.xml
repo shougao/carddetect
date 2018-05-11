@@ -11,7 +11,7 @@
     <ImageView
         android:id="@+id/firstImageView"
         android:layout_width="match_parent"
-        android:layout_height="100dp"
+        android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
         android:contentDescription="@string/imageresult" />
@@ -37,6 +37,41 @@
         android:gravity="center"
         android:orientation="vertical"
         android:weightSum="1">
+
+        <LinearLayout
+            android:id="@+id/level3"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_alignParentBottom="true"
+            android:layout_marginStart="0dp"
+            android:layout_weight="1.0"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_contour_detect"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="监测外围轮廓" />
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="按钮" />
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="按钮" />
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="按钮" />
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/level2"

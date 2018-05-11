@@ -1,17 +1,26 @@
 package com.example.eric.animaldetect;
 
+import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.location.LocationManager;
+import android.location.LocationProvider;
 import android.os.Bundle;
 import android.app.Activity;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import com.example.eric.animaldetect.qrcode.QRManager;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
@@ -68,8 +77,12 @@ public class AnimalActivity extends Activity {
     @BindView(R.id.btn_cut_qrcode)
     Button mCutQRCode;
 
+    @BindView(R.id.btn_contour_detect)
+    Button mBUttonContour;
+
     @BindView(R.id.btn_getCT)
     Button mGetCT;
+
 
     @BindView(R.id.firstImageView)
     ImageView mFirstImageView;
@@ -157,7 +170,8 @@ public class AnimalActivity extends Activity {
 
     @OnClick({R.id.btn_grayImage, R.id.btn_binaryImage, R.id.btn_erodeImage,
             R.id.btn_filterandcut, R.id.btn_origin,
-            R.id.btn_multiqrcode, R.id.btn_cut_qrcode, R.id.btn_getCT})
+            R.id.btn_multiqrcode, R.id.btn_cut_qrcode, R.id.btn_getCT,
+            R.id.btn_contour_detect})
     public void onViewClick(View view) {
         switch (view.getId()) {
             case R.id.btn_grayImage:
@@ -184,8 +198,46 @@ public class AnimalActivity extends Activity {
             case R.id.btn_getCT:
                 getCT();
                 break;
+            case R.id.btn_contour_detect:
+                Mat target = getBigContour();
+                showSmallImage(target);
+                break;
         }
     }
+
+    //========================提取大轮廓
+
+    private Mat getBigContour(){
+        int thresh = 0;
+        int maxval = 255;
+
+        Mat result = new Mat();
+
+        Mat src = bitmapToMat(getAllMultiQRsrcImage());
+        Mat origin = src.clone();
+        //1 灰度处理
+        Imgproc.cvtColor(src, src, Imgproc.COLOR_BGR2GRAY, 1); //最后一个参数标示图像通道数
+
+        //2 阈值处理，使用二值化和OTSU自适应算法
+        Imgproc.threshold(src, src, thresh, maxval, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
+
+        //3 轮廓提取
+        Imgproc.Canny(src, src, 20, 60);
+
+        //4 获取最大轮廓
+
+
+        return result;
+    }
+
+
+
+    // multi qrcode reganize.
+    private Bitmap getAllMultiQRsrcImage() {
+        return BitmapFactory.decodeResource(getResources(), R.drawable.all_photo);
+    }
+
+    //========================
 
     private void displayGrayImage() {
         showBitmapImage(getBmpToGrayBmp(getOriginBitmap()));
@@ -477,133 +529,23 @@ public class AnimalActivity extends Activity {
 
         // 2 获取图像的自动阈值处理图像。
 //        Mat image = srcMatList.get(3);//假设遍历得到的是第四个。
-        for(Mat image : srcMatList) {
-            calcGray(image);
+        ArrayList<Double> grayValueList = new ArrayList<>();
+        JSONObject jsonObject = new JSONObject();
+        for (Mat image : srcMatList) {
+            double grayValue = calcGray(image);
+            grayValueList.add(grayValue);
         }
 
-        if (true) {
-            return;
-        }
-
-        if(false) {
-/*
-        // 方法二(第七步 7 找到位置坐标。)
-        // 找出轮廓对应凸包的四边形拟合
-        List<MatOfPoint> squares = new ArrayList<>();
-        List<MatOfPoint> hulls = new ArrayList<>();
-        MatOfInt hull = new MatOfInt();
-        MatOfPoint2f approx = new MatOfPoint2f();
-        approx.convertTo(approx, CvType.CV_32F);
-
-        for (MatOfPoint contour : mCTContours) {
-            // 边框的凸包
-            Imgproc.convexHull(contour, hull);
-
-            // 用凸包计算出新的轮廓点
-            Point[] contourPoints = contour.toArray();
-            int[] indices = hull.toArray();
-            List<Point> newPoints = new ArrayList<>();
-            for (int index : indices) {
-                newPoints.add(contourPoints[index]);
-            }
-            MatOfPoint2f contourHull = new MatOfPoint2f();
-            contourHull.fromList(newPoints);
-
-            // 多边形拟合凸包边框(此时的拟合的精度较低)
-            Imgproc.approxPolyDP(contourHull, approx, Imgproc.arcLength(contourHull, true) * 0.02, true);
-
-            // 筛选出面积大于某一阈值的，且四边形的各个角度都接近直角的凸四边形
-            MatOfPoint approxf1 = new MatOfPoint();
-            approx.convertTo(approxf1, CvType.CV_32S);
-            if (approx.rows() > 4 && Imgproc.isContourConvex(approxf1) && checkArea(approx)) {
-                // 角度大概72度
-//                if (maxCosine < 0.2) {
-                MatOfPoint tmp = new MatOfPoint();
-                contourHull.convertTo(tmp, CvType.CV_32S);
-                squares.add(approxf1);
-                hulls.add(tmp);
-//                }
+        for (int i = 0; i < grayValueList.size(); i++) {
+            try {
+                jsonObject.put(String.valueOf(i), grayValueList.get(i));
+            } catch (JSONException e) {
+                e.printStackTrace();
             }
         }
-
-
-        System.out.println(TAG + "zqc square number is " + squares.size());
-
-        for (MatOfPoint ct : squares) {
-            Mat result = cutImage(ctImageTarget, 0, 0, ct.cols() + 30, ct.rows() + 30);
-            showSmallImage(result);
-            if (true) {
-                return;
-            }
-        }
-
-        // 找出外接矩形最大的四边形
-//        int index = findLargestSquare(squares);
-//        MatOfPoint largest_square = squares.get(index);
-//        if (largest_square.rows() == 0 || largest_square.cols() == 0)
-//            return result;
-
-        showSmallImage(edgeMat);
-
-        // 7 读取CT轮廓内和轮廓外的灰度值。
-
-        //原图中剪切
-
-        //原图中坐标的读取。
-
-        if (true) {
-            return;
-        }
-
-        // find the center of the image
-        double[] centers = {(double) image.width() / 2, (double) image.height() / 2};
-        Point image_center = new Point(centers);
-
-//        // 使用高斯滤波, 去除过多噪声和纹理，
-//        Mat gausMat = new Mat(srcMat.rows(), srcMat.cols(), CvType.CV_8UC1);
-//        Imgproc.GaussianBlur(dstMatGray, gausMat, new Size(3,3), 2, 2);
-//        showSmallImage(gausMat);
-        if (true) {
-            return;
-        }
-
-//        // finding the contours
-//        ArrayList<MatOfPoint> contours = new ArrayList<MatOfPoint>();
-//        Mat hierarchy = new Mat();
-//        Imgproc.findContours(image, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
-//
-//
-//        // finding best bounding rectangle for a contour whose distance is closer to the image center that other ones
-//        double d_min = Double.MAX_VALUE;
-//        Rect rect_min = new Rect();
-//        for (MatOfPoint contour : contours) {
-//            Rect rec = Imgproc.boundingRect(contour);
-//            // find the best candidates
-//            if (rec.height > srcMat.height() / 2 & rec.width > srcMat.width() / 2)
-//                continue;
-//            Point pt1 = new Point((double) rec.x, (double) rec.y);
-//            Point center = new Point(rec.x + (double) (rec.width) / 2, rec.y + (double) (rec.height) / 2);
-//            double d = Math.sqrt(Math.pow((double) (pt1.x - image_center.x), 2) + Math.pow((double) (pt1.y - image_center.y), 2));
-//            if (d < d_min) {
-//                d_min = d;
-//                rect_min = rec;
-//            }
-//        }
-//        // slicing the image for result region
-//        int pad = 6;
-//        rect_min.x = rect_min.x - pad;
-//        rect_min.y = rect_min.y - pad;
-//
-//        rect_min.width = rect_min.width + 2 * pad;
-//        rect_min.height = rect_min.height + 2 * pad;
-//
-//        Mat result = original.submat(rect_min);
-//        showSmallImage(result);*/
-        }
-
     }
 
-    private double calcGray(Mat image){
+    private double calcGray(Mat image) {
 
         Mat targetImage = image.clone();
 //        Mat image = new Mat(srcMat.rows(), srcMat.cols(), CvType.CV_8UC1);
@@ -684,13 +626,13 @@ public class AnimalActivity extends Activity {
         // 仅获取中间值， 其他位置， 以及删除污染底色todo
         Rect rectC = Imgproc.boundingRect(mCTContours.get(0));
         Rect rectT;
-        if(mCTContours.size() == 1){
+        if (mCTContours.size() == 1) {
             rectT = new Rect(137, 537, 119, 45);//经验值 rect.x = 137, rect.y=537, width=119, heigh=45
         } else {
             rectT = Imgproc.boundingRect(mCTContours.get(1));
         }
-        System.out.println("background size: x=" +rectC.x + ", y=" + (rectC.y + rectC.height) + ", width=" + rectC.width + ", heigh=" + (rectT.y-rectC.y-rectC.height));
-        mMatBackground = cutImage(ctImageTarget, rectC.x, rectC.y + rectC.height, rectC.width, rectT.y-rectC.y-rectC.height);
+        System.out.println("background size: x=" + rectC.x + ", y=" + (rectC.y + rectC.height) + ", width=" + rectC.width + ", heigh=" + (rectT.y - rectC.y - rectC.height));
+        mMatBackground = cutImage(ctImageTarget, rectC.x, rectC.y + rectC.height, rectC.width, rectT.y - rectC.y - rectC.height);
         double mGrayBackgroundValue = 0.0;
         if (mMatBackground != null) {
             mGrayBackgroundValue = getInnerGrayValue(mMatBackground);
@@ -708,6 +650,7 @@ public class AnimalActivity extends Activity {
     private double getFinalValue(double tValue, double background) {
         return (255 - tValue) - (255 - background);
     }
+
     /**
      * 矩形的Y值从小到大排序
      */
@@ -716,9 +659,9 @@ public class AnimalActivity extends Activity {
         public int compare(MatOfPoint contour1, MatOfPoint contour2) {
             Rect rect1 = Imgproc.boundingRect(contour1);
             Rect rect2 = Imgproc.boundingRect(contour2);
-            if(rect1.y > rect2.y){
+            if (rect1.y > rect2.y) {
                 return 1;
-            } else{
+            } else {
                 return -1;
             }
         }
