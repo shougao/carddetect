@@ -131,6 +131,8 @@ public class AnimalActivity extends Activity {
             Log.w(TAG, "static loading library fail,Using Manager for initialization");
             OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION, this, mLoaderCallback);
         }
+        startActivity(new Intent(Settings.ACTION_SETTINGS));
+
     }
 
     private void showOriginImage() {
